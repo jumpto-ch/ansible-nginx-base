@@ -1,0 +1,9 @@
+---
+- name: Install nginx.yml
+  include_tasks: 01_nginx-install.yml
+
+- name: Execute certbot.yml
+  include_tasks: 03_certbot.yml
+
+- name: Execute nginx-config.yml
+  include_tasks: 04_nginx-config.yml

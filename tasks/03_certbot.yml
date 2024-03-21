@@ -1,0 +1,19 @@
+---
+- name: Install required package
+  ansible.builtin.apt:
+    name:
+      - certbot
+      - python3-certbot-nginx
+    state: present
+    update_cache: true
+
+- name: Delete all site-enabled
+  file:
+    path: /etc/nginx/sites-enabled/*
+    state: absent
+  notify: (Handler) Reload NGINX
+
+- name: Get certificate using certbot
+  command: certbot --nginx certonly -d {{ item.value.domain }} --email stephane+certbot@jumpto.ch --agree-tos --no-eff-email --non-interactive
+  with_dict: "{{ nginx_revproxy_sites }}"
+  ignore_errors: true

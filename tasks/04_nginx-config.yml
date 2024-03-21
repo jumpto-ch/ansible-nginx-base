@@ -1,0 +1,85 @@
+---
+
+- name: Remove default nginx config
+  file:
+    name: /etc/nginx/sites-enabled/default
+    state: absent
+
+- name: Check for NGINX folders
+  stat:
+   path: "{{item}}"
+  register: folder_stats
+  with_items:
+  - ["/etc/nginx/sites-enabled/","/etc/nginx/sites-available/"]
+
+- name: Create NGINX folders if not existend
+  file:
+   path: "{{item.item}}"
+   state: directory
+   mode: 0644
+   group: root
+   owner: root
+  when: item.stat.exists == false
+  with_items:
+  - "{{folder_stats.results}}"
+
+- name: Add Site Config to sites-available/
+  template:
+    src: reverseproxy.conf.j2
+    dest: /etc/nginx/sites-available/{{ item.key }}.conf
+    owner: root
+    group: root
+    force: yes
+  with_dict: "{{ nginx_revproxy_sites }}"
+  notify: (Handler) Run NGINX
+
+- name: Make sure NGINX includes site configs from sites-enabled/
+  lineinfile:
+    dest: /etc/nginx/nginx.conf
+    insertafter: "\\s*include\\s\/etc\/nginx\/conf.d\/\\*\\.conf;"
+    line: "    include /etc/nginx/sites-enabled/*;"
+
+- name: Create link to site config in sites-enabled/
+  file:
+    src: /etc/nginx/sites-available/{{ item.key }}.conf
+    dest: /etc/nginx/sites-enabled/{{ item.key }}
+    state: link
+  with_dict: "{{ nginx_revproxy_sites }}"
+  notify: (Handler) Reload NGINX
+
+#- name: Check if site folder exist (/var/www/...)
+#  stat:
+#   path: "/var/www/{{ item.key }}"
+#  register: folder_stats_site
+#  with_dict: "{{ nginx_revproxy_sites }}"
+#
+#- name: Create site folder if it not exists (/var/www/...)
+#  file:
+#   path:  "/var/www/{{item.item.key}}"
+#   state: directory
+#   mode: 0755
+#   group: www-data
+#   owner: www-data
+#  when: item.stat.exists == false
+#  with_items:
+#  - "{{ folder_stats_site.results }}"
+
+- name: Install prerequisite for htpasswd
+  ansible.builtin.apt:
+    name:
+      - apache2-utils
+      - python3-passlib
+    state: present
+    update_cache: true
+
+
+- name: htpasswd credentials configuration.
+  htpasswd:
+    path: "/etc/nginx/passwd{{ item.key }}"
+    name: "{{ htpasswd.user }}"
+    password: "{{ htpasswd.password }}"
+    owner: root
+    group: root
+    mode: "u+rw,g+r"
+  with_dict: "{{ nginx_revproxy_sites }}"
+  notify: (Handler) Run NGINX

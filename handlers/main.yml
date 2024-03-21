@@ -1,0 +1,11 @@
+---
+
+- name: (Handler) Run NGINX
+  service:
+    name: nginx
+    state: restarted
+
+- name: (Handler) Reload NGINX
+  ansible.builtin.service:
+    name: nginx
+    state: reloaded

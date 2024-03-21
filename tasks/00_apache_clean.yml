@@ -1,0 +1,23 @@
+---
+- name: Stop apache2 webserver (if running)
+  service:
+    name: apache2
+    state: stopped
+  when: "'apache2' in services"
+
+- name: 'Remove apache2 packages and dependencies (if installed)'
+  apt:
+    name:
+    - "apache2"
+    - "apache2.2-bin"
+    - "apache2-common"
+    state: absent
+
+- name: Remove apache2 directories (if existent)
+  file:
+    state: absent
+    path: "{{ item.name }}"
+  with_items:
+    - { name: /etc/apache2 }
+    - { name: /usr/lib/apache2 }
+    - { name: /usr/include/apache2 }
